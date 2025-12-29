@@ -26,21 +26,28 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/configurar-loja" element={<StoreSetup />} />
-            <Route path="/produtos" element={<Products />} />
-            <Route path="/categorias" element={<Categories />} />
-            <Route path="/pdv" element={<PDV />} />
-            <Route path="/relatorios" element={<Reports />} />
-            <Route path="/estoque" element={<StockMovements />} />
-            <Route path="/financeiro" element={<FinancialReports />} />
-            <Route path="/contas" element={<Bills />} />
-            <Route path="/caixa" element={<CashRegister />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <div className="flex flex-col min-h-screen bg-background">
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/configurar-loja" element={<StoreSetup />} />
+                <Route path="/produtos" element={<Products />} />
+                <Route path="/categorias" element={<Categories />} />
+                <Route path="/pdv" element={<PDV />} />
+                <Route path="/relatorios" element={<Reports />} />
+                <Route path="/estoque" element={<StockMovements />} />
+                <Route path="/financeiro" element={<FinancialReports />} />
+                <Route path="/contas" element={<Bills />} />
+                <Route path="/caixa" element={<CashRegister />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <footer className="text-center p-4 text-sm text-muted-foreground">
+              Feito por: Vidall-Dev
+            </footer>
+          </div>
         </BrowserRouter>
       </StoreProvider>
     </TooltipProvider>
