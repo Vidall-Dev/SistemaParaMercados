@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
 import QuantityButton from '@/components/cart/QuantityButton';
+import { PendingSalesDialog } from '@/components/cart/PendingSalesDialog';
 import { useBarcodeInput } from '@/hooks/useBarcodeInput';
 import { toast } from 'sonner';
+import { usePendingSales } from '@/hooks/usePendingSales';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -24,9 +26,27 @@ const PDV = () => {
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
   const cartRef = useRef<HTMLDivElement>(null);
+  // pending sales
+  const { pendingSales, suspendSale, resumeSale } = usePendingSales();
+  const [pendingOpen, setPendingOpen] = useState(false);
   useAutoScroll(cartRef, [items]);
 
   // leitor de código de barras
+  // função para suspender venda atual
+  const suspendCurrentSale = async () => {
+    if (items.length === 0) return;
+    const cartPayload = items.map((it) => ({
+      product_id: it.id,
+      name: it.name,
+      quantity: it.quantity,
+      price: it.price,
+    }));
+    await suspendSale(cartPayload);
+    toast.success('Venda suspensa');
+    setItems([]);
+    setAmountPaid(0);
+  };
+
   useBarcodeInput(async (code) => {
     // procura produto por código de barras exact match
     const { data, error } = await supabase
@@ -89,7 +109,15 @@ const PDV = () => {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
-      if (e.key === 'F12') {
+      if (e.key === 'F8') {
+      e.preventDefault();
+      setPendingOpen(true);
+    }
+    if (e.key === 'F9') {
+      e.preventDefault();
+      suspendCurrentSale();
+    }
+    if (e.key === 'F12') {
         e.preventDefault();
         if (items.length > 0) {
           setIsPaymentModalOpen(true);
@@ -295,6 +323,11 @@ const PDV = () => {
 
   return (
     <>
+      <div className="flex justify-end mb-2">
+        <Button variant="outline" size="sm" onClick={() => setPendingOpen(true)}>
+          Vendas suspensas ({pendingSales.length})
+        </Button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 p-4 h-[calc(100vh-80px)] bg-muted/40">
       
       {/* Coluna Esquerda: Busca de Produtos */}
@@ -403,6 +436,9 @@ const PDV = () => {
             </div>
           </CardContent>
           <CardFooter>
+            <Button variant="outline" className="w-full mb-2" disabled={items.length===0} onClick={suspendCurrentSale}>
+              Suspender venda (F9)
+            </Button>
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" className="w-full text-lg" disabled={items.length === 0}>
@@ -496,6 +532,14 @@ const PDV = () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <PendingSalesDialog
+      open={pendingOpen}
+      onOpenChange={setPendingOpen}
+      onResume={(cart)=>{
+        setItems(cart as any);
+        setPendingOpen(false);
+      }}
+    />
     </>
   );
 };
