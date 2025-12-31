@@ -73,6 +73,7 @@ const Layout = ({ children }: LayoutProps) => {
     { icon: Receipt, label: "Contas a Pagar", path: "/contas" },
     { icon: BarChart3, label: "Relatórios", path: "/relatorios" },
     { icon: BarChart3, label: "Financeiro", path: "/financeiro" },
+    { icon: Settings, label: "Configurações", path: "/configuracoes" },
   ];
 
   if (!session || loading) {
