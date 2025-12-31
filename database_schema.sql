@@ -301,6 +301,20 @@ CREATE POLICY "Usuários podem criar parcelas"
     WHERE sales.id = installments.sale_id AND sales.user_id = auth.uid()
   ));
 
+-- ============================================
+-- 13. FUNÇÃO PARA DECREMENTAR ESTOQUE
+-- ============================================
+CREATE OR REPLACE FUNCTION public.decrement_stock(p_product_id UUID, p_quantity INTEGER)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE public.products
+  SET stock_quantity = stock_quantity - p_quantity
+  WHERE id = p_product_id;
+END;
+$$;
+
 CREATE POLICY "Usuários podem atualizar parcelas" 
   ON public.installments FOR UPDATE 
   USING (auth.uid() IS NOT NULL);
