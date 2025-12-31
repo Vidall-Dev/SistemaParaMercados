@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/hooks/useStore';
 
@@ -20,7 +20,18 @@ const PDV = () => {
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { storeId } = useStore();
+  const { storeId, store } = useStore();
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<{
+    saleId: string;
+    saleNumber?: number | null;
+    items: Array<{ id: string; name: string; quantity: number; price: number }>;
+    total: number;
+    paymentMethod: string;
+    amountPaid: number;
+    change: number;
+    createdAt: string;
+  } | null>(null);
 
     useEffect(() => {
     const handleSearch = async () => {
@@ -151,13 +162,99 @@ const PDV = () => {
       console.error('Erro ao inserir itens da venda:', itemsError);
       // Aqui você pode querer deletar a venda que foi criada para manter a consistência
     } else {
+      const saleSnapshot = items.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+      setReceiptData({
+        saleId: saleData.id,
+        saleNumber: (saleData as any)?.sale_number ?? null,
+        items: saleSnapshot,
+        total,
+        paymentMethod,
+        amountPaid,
+        change,
+        createdAt: new Date().toLocaleString('pt-BR'),
+      });
+      setIsReceiptModalOpen(true);
       // Limpar tudo após o sucesso
       setItems([]);
       setAmountPaid(0);
       setIsPaymentModalOpen(false);
+      setPaymentMethod('Dinheiro');
     }
 
     setLoading(false);
+  };
+
+  const handlePrintReceipt = () => {
+    if (!receiptData) return;
+
+    const printWindow = window.open('', '', 'width=400,height=600');
+    if (!printWindow) return;
+
+    const receiptHtml = `
+      <html>
+        <head>
+          <title>Recibo de Venda</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 16px; }
+            h1, h2 { text-align: center; margin: 0; }
+            .info { margin-top: 12px; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; font-size: 14px; }
+            .total { font-size: 16px; font-weight: bold; margin-top: 12px; display: flex; justify-content: space-between; }
+            .footer { text-align: center; margin-top: 18px; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>${store?.name ?? 'Sistema Mercado'}</h1>
+          <h2>Recibo de Venda</h2>
+          <div class="info">
+            <div>ID da venda: ${receiptData.saleNumber ?? receiptData.saleId}</div>
+            <div>Data: ${receiptData.createdAt}</div>
+            <div>Método de Pagamento: ${receiptData.paymentMethod}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Qtd</th>
+                <th>Preço</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${receiptData.items.map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>R$ ${item.price.toFixed(2)}</td>
+                  <td>R$ ${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="total">
+            <span>Total</span>
+            <span>R$ ${receiptData.total.toFixed(2)}</span>
+          </div>
+          <div class="info">
+            <div>Valor Recebido: R$ ${receiptData.amountPaid.toFixed(2)}</div>
+            <div>Troco: R$ ${receiptData.change.toFixed(2)}</div>
+          </div>
+          <div class="footer">Obrigado pela preferência!</div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
 
   return (
@@ -308,6 +405,52 @@ const PDV = () => {
       </div>
 
     </div>
+
+    <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Recibo gerado</DialogTitle>
+          <DialogDescription>
+            A venda foi registrada com sucesso. Você pode imprimir a notinha abaixo.
+          </DialogDescription>
+        </DialogHeader>
+        {receiptData && (
+          <div className="space-y-4 text-sm">
+            <div className="space-y-1">
+              <p><strong>Venda:</strong> {receiptData.saleNumber ?? receiptData.saleId}</p>
+              <p><strong>Data:</strong> {receiptData.createdAt}</p>
+              <p><strong>Método:</strong> {receiptData.paymentMethod}</p>
+            </div>
+            <Separator />
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {receiptData.items.map(item => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-muted-foreground">{item.quantity} x R$ {item.price.toFixed(2)}</p>
+                  </div>
+                  <p className="font-semibold">R$ {(item.quantity * item.price).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+            <Separator />
+            <div className="space-y-1 text-sm">
+              <p className="flex justify-between"><span>Total:</span><span className="font-semibold">R$ {receiptData.total.toFixed(2)}</span></p>
+              <p className="flex justify-between"><span>Recebido:</span><span>R$ {receiptData.amountPaid.toFixed(2)}</span></p>
+              <p className="flex justify-between"><span>Troco:</span><span>R$ {receiptData.change.toFixed(2)}</span></p>
+            </div>
+          </div>
+        )}
+        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:space-x-2">
+          <Button variant="outline" onClick={() => setIsReceiptModalOpen(false)} className="w-full sm:w-auto">
+            Fechar
+          </Button>
+          <Button onClick={handlePrintReceipt} className="w-full sm:w-auto">
+            Imprimir notinha
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
