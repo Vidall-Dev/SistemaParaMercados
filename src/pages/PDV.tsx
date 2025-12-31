@@ -27,8 +27,7 @@ const PDV = () => {
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const remaining = parseFloat((total - payments.reduce((s,p)=>s+p.amount,0)).toFixed(2));
+  const [isMultiPaymentOpen, setIsMultiPaymentOpen] = useState(false);
   const cartRef = useRef<HTMLDivElement>(null);
   // pending sales
   const { pendingSales, suspendSale, resumeSale } = usePendingSales();
@@ -77,6 +76,7 @@ const PDV = () => {
     paymentMethod: string;
     amountPaid: number;
     change: number;
+    payments?: Array<{ method: string; amount: number }>;
     createdAt: string;
   } | null>(null);
 
@@ -168,6 +168,7 @@ const PDV = () => {
 
   const total = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
   const change = amountPaid > total ? amountPaid - total : 0;
+  const remaining = Math.max(0, total - payments.reduce((s, p) => s + p.amount, 0));
 
   const handleFinalizeSale = async () => {
     if (!storeId) {
@@ -183,6 +184,13 @@ const PDV = () => {
       return;
     }
 
+    // Se houver múltiplos pagamentos, só permite finalizar quando remaining == 0
+    if (payments.length > 0 && remaining > 0) {
+      toast.error('Ainda há valor restante para quitar.');
+      setLoading(false);
+      return;
+    }
+
     // 1. Inserir na tabela 'sales'
     const { data: saleData, error: saleError } = await supabase
       .from('sales')
@@ -190,7 +198,7 @@ const PDV = () => {
         user_id: user.id,
         total_amount: total,
         final_amount: total,
-        payment_method: paymentMethod,
+        payment_method: (payments.length > 0 ? 'MULTIPLOS' : paymentMethod),
         store_id: storeId,
       })
       .select()
@@ -240,9 +248,10 @@ const PDV = () => {
         saleNumber: (saleData as any)?.sale_number ?? null,
         items: saleSnapshot,
         total,
-        paymentMethod,
-        amountPaid,
-        change,
+        paymentMethod: (payments.length > 0 ? 'Múltiplos' : paymentMethod),
+        amountPaid: (payments.length > 0 ? total : amountPaid),
+        change: (payments.length > 0 ? 0 : change),
+        payments: (payments.length > 0 ? payments : undefined),
         createdAt: new Date().toLocaleString('pt-BR'),
       });
       setIsReceiptModalOpen(true);
@@ -251,6 +260,8 @@ const PDV = () => {
       setAmountPaid(0);
       setIsPaymentModalOpen(false);
       setPaymentMethod('Dinheiro');
+      setPayments([]);
+      setIsMultiPaymentOpen(false);
     }
 
     setLoading(false);
@@ -305,6 +316,15 @@ const PDV = () => {
     lines.push(recebidoStr);
     const trocoStr = padLeft("Troco: R$ " + receiptData.change.toFixed(2), WIDTH);
     lines.push(trocoStr);
+    if (receiptData.payments && receiptData.payments.length>0) {
+      lines.push("-".repeat(WIDTH));
+      lines.push(padCenter("PAGAMENTOS"));
+      receiptData.payments.forEach(p => {
+        const label = (p.method || '').toUpperCase().slice(0, 20);
+        const amt = "R$ "+ p.amount.toFixed(2);
+        lines.push(padRight(label, 20) + padLeft(amt, 12));
+      });
+    }
     lines.push("-".repeat(WIDTH));
     lines.push(padCenter("OBRIGADO E VOLTE SEMPRE!"));
 
@@ -437,6 +457,22 @@ const PDV = () => {
                   </Button>
                 ))}
               </div>
+              <div className="mt-3 flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={() => setIsMultiPaymentOpen(true)} disabled={items.length===0}>
+                  Adicionar pagto
+                </Button>
+                <span className="text-sm text-muted-foreground">Restante: R$ {remaining.toFixed(2)}</span>
+              </div>
+              {payments.length > 0 && (
+                <div className="mt-2 space-y-1 text-sm">
+                  {payments.map((p, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span>{p.method}</span>
+                      <span>R$ {p.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
           <CardFooter>
@@ -445,7 +481,7 @@ const PDV = () => {
             </Button>
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" className="w-full text-lg" disabled={items.length === 0}>
+                <Button size="lg" className="w-full text-lg" disabled={items.length === 0 || (payments.length>0 && remaining>0)}>
                   Finalizar (F12)
                 </Button>
               </DialogTrigger>
@@ -519,6 +555,15 @@ const PDV = () => {
               ))}
             </div>
             <Separator />
+            {receiptData.payments && (
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">Pagamentos:</p>
+                {receiptData.payments.map((p,i)=> (
+                  <p key={i} className="flex justify-between"><span>{p.method}</span><span>R$ {p.amount.toFixed(2)}</span></p>
+                ))}
+              </div>
+            )}
+            <Separator />
             <div className="space-y-1 text-sm">
               <p className="flex justify-between"><span>Total:</span><span className="font-semibold">R$ {receiptData.total.toFixed(2)}</span></p>
               <p className="flex justify-between"><span>Recebido:</span><span>R$ {receiptData.amountPaid.toFixed(2)}</span></p>
@@ -536,6 +581,14 @@ const PDV = () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <PaymentModal
+      total={total}
+      open={isMultiPaymentOpen}
+      onOpenChange={setIsMultiPaymentOpen}
+      onConfirm={(pay)=>{
+        setPayments(pay);
+      }}
+    />
     <PendingSalesDialog
       open={pendingOpen}
       onOpenChange={setPendingOpen}
