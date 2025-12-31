@@ -259,7 +259,8 @@ const PDV = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 p-4 h-[calc(100vh-80px)] bg-muted/40">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 p-4 h-[calc(100vh-80px)] bg-muted/40">
       
       {/* Coluna Esquerda: Busca de Produtos */}
       <div className="lg:col-span-3">
@@ -452,6 +453,7 @@ const PDV = () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 };
 
