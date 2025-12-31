@@ -9,9 +9,10 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-interface Sale { id: string; created_at: string; final_amount: number; payment_method: string; }
+interface Sale { id: string; created_at: string; final_amount: number; payment_method: string; change_given?: number; }
 interface SalePayment { sale_id: string; payment_method: string; amount: number; }
-interface Bill { id: string; description: string; amount: number; paid_date: string | null; status: string; }
+interface Bill { id: string; description: string; amount: number; paid_date: string | null; status: string; paid_method?: string | null; }
+interface CashMovement { id: string; type: 'withdrawal' | 'supply'; method: string; amount: number; created_at: string; notes: string | null; }
 
 const labelFor = (m: string) => {
   const t = (m || "").toLowerCase();
@@ -45,13 +46,13 @@ const FluxoCaixa = () => {
       // 1) Vendas do dia
       const { data: salesData } = await supabase
         .from("sales")
-        .select("id, created_at, final_amount, payment_method, store_id")
+        .select("id, created_at, final_amount, payment_method, change_given, store_id")
         .eq("store_id", storeId)
         .gte("created_at", start)
         .lte("created_at", end)
         .order("created_at", { ascending: false });
       const list = (salesData || []) as any[];
-      setSales(list.map(s => ({ id: s.id, created_at: s.created_at, final_amount: s.final_amount, payment_method: s.payment_method })));
+      setSales(list.map(s => ({ id: s.id, created_at: s.created_at, final_amount: s.final_amount, payment_method: s.payment_method, change_given: Number(s.change_given||0) })));
 
       // 2) Pagamentos das vendas
       const saleIds = list.map(s => s.id);
@@ -74,13 +75,23 @@ const FluxoCaixa = () => {
       // 3) Contas pagas do dia
       const { data: billsData } = await supabase
         .from("bills")
-        .select("id, description, amount, paid_date, status, store_id")
+        .select("id, description, amount, paid_date, status, paid_method, store_id")
         .eq("store_id", storeId)
         .eq("status", "paid")
         .gte("paid_date", selectedDate)
         .lte("paid_date", selectedDate)
         .order("paid_date", { ascending: false });
       setBills((billsData || []) as any);
+
+      // 4) Movimentos de caixa (sangria/suprimento)
+      const { data: cmData } = await supabase
+        .from('cash_movements')
+        .select('id, type, method, amount, created_at, notes, store_id')
+        .eq('store_id', storeId)
+        .gte('created_at', start)
+        .lte('created_at', end)
+        .order('created_at', { ascending: false });
+      setCashMovements((cmData || []) as any);
     })();
   }, [storeId, selectedDate]);
 
@@ -99,6 +110,25 @@ const FluxoCaixa = () => {
     });
     return totals;
   }, [sales, paymentsBySale]);
+
+  const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
+  const outflowBreakdown = useMemo(() => {
+    const out = new Map<string, number>();
+    // Contas pagas por método (se houver paid_method)
+    bills.forEach(b => {
+      const m = (b.paid_method || 'cash');
+      out.set(m, (out.get(m)||0) + Number(b.amount||0));
+    });
+    // Troco como saída em dinheiro
+    const troco = sales.reduce((s, x) => s + Number(x.change_given||0), 0);
+    if (troco > 0) out.set('cash', (out.get('cash')||0) + troco);
+    // Movimentos de caixa
+    cashMovements.forEach(cm => {
+      const sign = cm.type === 'withdrawal' ? -1 : 1; // withdrawal reduz, supply aumenta
+      out.set(cm.method, (out.get(cm.method)||0) + sign * Number(cm.amount));
+    });
+    return out;
+  }, [bills, sales, cashMovements]);
 
   const totalInflow = useMemo(() => {
     let sum = 0;
@@ -180,6 +210,7 @@ const FluxoCaixa = () => {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Descrição</TableHead>
+                      <TableHead>Método</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -188,6 +219,7 @@ const FluxoCaixa = () => {
                       <TableRow key={b.id}>
                         <TableCell>{b.paid_date ? format(new Date(b.paid_date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "-"}</TableCell>
                         <TableCell>{b.description}</TableCell>
+                        <TableCell>{labelFor(b.paid_method||'cash')}</TableCell>
                         <TableCell className="text-right">R$ {Number(b.amount).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
@@ -197,6 +229,33 @@ const FluxoCaixa = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Quebra de saídas por método, incluindo troco e movimentos de caixa */}
+        <Card>
+          <CardHeader><CardTitle>Saídas por Método (inclui troco e movimentações)</CardTitle></CardHeader>
+          <CardContent>
+            {[...outflowBreakdown.entries()].length === 0 ? (
+              <div className="text-sm text-muted-foreground">Sem saídas registradas</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Método</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...outflowBreakdown.entries()].map(([m, v]) => (
+                    <TableRow key={m}>
+                      <TableCell>{labelFor(m)}</TableCell>
+                      <TableCell className="text-right">R$ {Number(v).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
         <Separator />
         <div className="text-sm text-muted-foreground">

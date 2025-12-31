@@ -143,9 +143,10 @@ const Bills = () => {
   };
 
   const handleMarkAsPaid = async (id: string) => {
+    // TODO: abrir dialog para escolher método (cash/credit/debit/pix) e salvar em paid_method
     const { error } = await supabase
       .from("bills")
-      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0] })
+      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0] /*, paid_method: 'cash'*/ })
       .eq("id", id);
 
     if (error) {

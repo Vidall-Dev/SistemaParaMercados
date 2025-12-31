@@ -250,6 +250,7 @@ const PDV = () => {
         payment_method: (payments.length === 0
           ? toCode(paymentMethod)
           : (payments.length === 1 ? toCode(payments[0].method) : 'multiple')),
+        change_given: (payments.length > 0 ? 0 : change),
         store_id: storeId,
       })
       .select()
