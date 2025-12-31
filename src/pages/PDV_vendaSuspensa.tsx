@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
 import QuantityButton from '@/components/cart/QuantityButton';
 import { PendingSalesDialog } from '@/components/cart/PendingSalesDialog';
-import { PaymentModal, Payment } from '@/components/payment/PaymentModal';
 import { useBarcodeInput } from '@/hooks/useBarcodeInput';
 import { toast } from 'sonner';
 import { usePendingSales } from '@/hooks/usePendingSales';
@@ -26,7 +25,6 @@ const PDV = () => {
   const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [payments, setPayments] = useState<Payment[]>([]);
   const cartRef = useRef<HTMLDivElement>(null);
   // pending sales
   const { pendingSales, suspendSale, resumeSale } = usePendingSales();
@@ -441,18 +439,7 @@ const PDV = () => {
             <Button variant="outline" className="w-full mb-2" disabled={items.length===0} onClick={suspendCurrentSale}>
               Suspender venda (F9)
             </Button>
-            <PaymentModal
-                total={total}
-                open={isPaymentModalOpen}
-                onOpenChange={setIsPaymentModalOpen}
-                onConfirm={(pay) => {
-                  setPayments(pay);
-                  // usa o primeiro método apenas para preencher campo obrigatório
-                  setPaymentMethod(pay[0].method);
-                  setAmountPaid(total);
-                  handleFinalizeSale();
-                }}
-              />
+            <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" className="w-full text-lg" disabled={items.length === 0}>
                   Finalizar (F12)
@@ -488,7 +475,7 @@ const PDV = () => {
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            
+            </Dialog>
           </CardFooter>
         </Card>
       </div>
@@ -544,7 +531,7 @@ const PDV = () => {
           </Button>
         </DialogFooter>
       </DialogContent>
-    
+    </Dialog>
     <PendingSalesDialog
       open={pendingOpen}
       onOpenChange={setPendingOpen}
