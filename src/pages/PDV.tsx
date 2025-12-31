@@ -453,12 +453,9 @@ const PDV = () => {
                   handleFinalizeSale();
                 }}
               />
-              <DialogTrigger asChild>
-                <Button size="lg" className="w-full text-lg" disabled={items.length === 0}>
-                  Finalizar (F12)
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
+              <Button size="lg" className="w-full text-lg" disabled={items.length===0} onClick={()=>setIsPaymentModalOpen(true)}>
+               Finalizar (F12)
+             </Button>
                 <DialogHeader>
                   <DialogTitle>Finalizar Venda</DialogTitle>
                 </DialogHeader>
@@ -487,7 +484,7 @@ const PDV = () => {
                     {loading ? 'Finalizando...' : 'Confirmar Pagamento'}
                   </Button>
                 </DialogFooter>
-              </DialogContent>
+              
             
           </CardFooter>
         </Card>
@@ -543,7 +540,7 @@ const PDV = () => {
             Imprimir notinha
           </Button>
         </DialogFooter>
-      </DialogContent>
+      
     
     <PendingSalesDialog
       open={pendingOpen}
