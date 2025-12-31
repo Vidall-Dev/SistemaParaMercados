@@ -211,9 +211,9 @@ const PDV = () => {
     }
 
     // 2. Inserir na tabela 'sale_items'
-    const saleItems = items.map(item => ({
+    const saleItems = items.map((item: any) => ({
       sale_id: saleData.id,
-      product_id: item.id,
+      product_id: item.id ?? item.product_id,
       quantity: item.quantity,
       unit_price: item.price,
       subtotal: item.quantity * item.price,
@@ -593,7 +593,14 @@ const PDV = () => {
       open={pendingOpen}
       onOpenChange={setPendingOpen}
       onResume={(cart)=>{
-        setItems(cart as any);
+        // normaliza itens do pending_sales (product_id, quantity, price, name?)
+        const normalized = (cart as any[]).map((it) => ({
+          id: it.id ?? it.product_id,
+          name: it.name ?? '-',
+          price: it.price,
+          quantity: it.quantity,
+        }));
+        setItems(normalized);
         setPendingOpen(false);
       }}
     />
