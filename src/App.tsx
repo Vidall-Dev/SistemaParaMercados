@@ -14,6 +14,7 @@ import MovimentacoesEstoque from "./pages/MovimentacoesEstoque";
 import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
 import Contas from "./pages/Contas";
 import Caixa from "./pages/Caixa";
+import FluxoCaixa from "./pages/FluxoCaixa";
 import ConfiguracaoLoja from "./pages/ConfiguracaoLoja";
 import NaoEncontrado from "./pages/NaoEncontrado";
 import Configuracoes from "./pages/Configuracoes";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/financeiro" element={<RelatoriosFinanceiros />} />
                 <Route path="/contas" element={<Contas />} />
                 <Route path="/caixa" element={<Caixa />} />
+                <Route path="/fluxo" element={<FluxoCaixa />} />
                 <Route path="/configuracoes" element={<Configuracoes />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NaoEncontrado />} />
