@@ -293,68 +293,6 @@ const PDV = () => {
   }
 
 
-    const receiptHtml = `
-      <html>
-        <head>
-          <title>Recibo de Venda</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 16px; }
-            h1, h2 { text-align: center; margin: 0; }
-            .info { margin-top: 12px; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            th, td { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; font-size: 14px; }
-            .total { font-size: 16px; font-weight: bold; margin-top: 12px; display: flex; justify-content: space-between; }
-            .footer { text-align: center; margin-top: 18px; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <h1>${store?.name ?? 'Sistema Mercado'}</h1>
-          <h2>Recibo de Venda</h2>
-          <div class="info">
-            <div>ID da venda: ${receiptData.saleNumber ?? receiptData.saleId}</div>
-            <div>Data: ${receiptData.createdAt}</div>
-            <div>Método de Pagamento: ${receiptData.paymentMethod}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>Qtd</th>
-                <th>Preço</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${receiptData.items.map(item => `
-                <tr>
-                  <td>${item.name}</td>
-                  <td>${item.quantity}</td>
-                  <td>R$ ${item.price.toFixed(2)}</td>
-                  <td>R$ ${(item.price * item.quantity).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="total">
-            <span>Total</span>
-            <span>R$ ${receiptData.total.toFixed(2)}</span>
-          </div>
-          <div class="info">
-            <div>Valor Recebido: R$ ${receiptData.amountPaid.toFixed(2)}</div>
-            <div>Troco: R$ ${receiptData.change.toFixed(2)}</div>
-          </div>
-          <div class="footer">Obrigado pela preferência!</div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    
-  };
-
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 p-4 h-[calc(100vh-80px)] bg-muted/40">
