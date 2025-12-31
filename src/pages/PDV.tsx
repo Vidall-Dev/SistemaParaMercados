@@ -191,6 +191,7 @@ const PDV = () => {
 
   const handlePrintReceipt = () => {
     if (!receiptData) return;
+    if (typeof window === 'undefined') return;
 
     const printWindow = window.open('', '', 'width=400,height=600');
     if (!printWindow) return;
