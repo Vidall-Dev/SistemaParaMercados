@@ -40,9 +40,12 @@ export const usePendingSales = () => {
   const suspendMutation = useMutation({
     mutationFn: async (cart: CartItem[]) => {
       if (!storeId) throw new Error("Sem loja");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sem usuário");
       const { error } = await supabase.from("pending_sales").insert({
         cart,
         store_id: storeId,
+        user_id: user.id,
       });
       if (error) throw error;
     },
