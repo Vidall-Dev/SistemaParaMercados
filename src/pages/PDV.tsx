@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Search, UserPlus, Trash2, X } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { useStore } from '@/hooks/useStore';
 
 // Componente para a nova tela de PDV
 const PDV = () => {
@@ -19,6 +20,7 @@ const PDV = () => {
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { storeId } = useStore();
 
     useEffect(() => {
     const handleSearch = async () => {
@@ -90,6 +92,11 @@ const PDV = () => {
   const change = amountPaid > total ? amountPaid - total : 0;
 
   const handleFinalizeSale = async () => {
+    if (!storeId) {
+      console.error('Nenhuma loja selecionada');
+      return;
+    }
+
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -106,7 +113,7 @@ const PDV = () => {
         total_amount: total,
         final_amount: total,
         payment_method: paymentMethod,
-        // Adicione store_id se necessário
+        store_id: storeId,
       })
       .select()
       .single();
@@ -242,13 +249,7 @@ const PDV = () => {
             <CardTitle>Finalizar Venda</CardTitle>
           </CardHeader>
           <CardContent className="flex-grow flex flex-col gap-4">
-            <div>
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <UserPlus className="h-4 w-4" />
-                Adicionar Cliente
-              </Button>
-            </div>
-            <Separator />
+
             <div>
               <h3 className="text-lg font-semibold mb-2">Pagamento</h3>
               <div className="grid grid-cols-2 gap-2">
