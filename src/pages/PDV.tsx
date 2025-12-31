@@ -483,7 +483,7 @@ const PDV = () => {
                   <Button onClick={handleFinalizeSale} disabled={loading} className="w-full">
                     {loading ? 'Finalizando...' : 'Confirmar Pagamento'}
                   </Button>
-                </DialogFooter>
+                
               
             
           </CardFooter>
@@ -539,7 +539,7 @@ const PDV = () => {
           <Button onClick={handlePrintReceipt} className="w-full sm:w-auto">
             Imprimir notinha
           </Button>
-        </DialogFooter>
+        
       
     
     <PendingSalesDialog
