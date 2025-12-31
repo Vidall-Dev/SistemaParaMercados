@@ -230,6 +230,16 @@ const PDV = () => {
       }
     }
 
+    // util para normalizar métodos para o banco
+    const toCode = (m: string) => {
+      const t = m.toLowerCase();
+      if (t.startsWith('dinheiro') || t === 'dinheiro' || t === 'cash') return 'cash';
+      if (t.startsWith('crédito') || t === 'credito' || t === 'crédito' || t === 'credit') return 'credit';
+      if (t.startsWith('débito') || t === 'debito' || t === 'débito' || t === 'debit') return 'debit';
+      if (t === 'pix') return 'pix';
+      return t;
+    };
+
     // 1. Inserir na tabela 'sales'
     const { data: saleData, error: saleError } = await supabase
       .from('sales')
@@ -237,7 +247,9 @@ const PDV = () => {
         user_id: user.id,
         total_amount: total,
         final_amount: total,
-        payment_method: (payments.length > 0 ? 'MULTIPLOS' : paymentMethod),
+        payment_method: (payments.length === 0
+          ? toCode(paymentMethod)
+          : (payments.length === 1 ? toCode(payments[0].method) : 'multiple')),
         store_id: storeId,
       })
       .select()
@@ -270,6 +282,20 @@ const PDV = () => {
       );
       
       await Promise.all(stockUpdates);
+    }
+
+    // 4. Persistir pagamentos múltiplos (se houver)
+    if (payments.length > 0) {
+      const rows = payments.map(p => ({
+        sale_id: (saleData as any).id,
+        payment_method: toCode(p.method),
+        amount: p.amount,
+      }));
+      const { error: payErr } = await supabase.from('sale_payments').insert(rows);
+      if (payErr) {
+        console.error('Erro ao inserir pagamentos:', payErr);
+        toast.error('Erro ao salvar pagamentos');
+      }
     }
 
     if (itemsError) {

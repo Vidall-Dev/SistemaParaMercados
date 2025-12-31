@@ -35,7 +35,6 @@ interface DailySummary {
   creditTotal: number;
   debitTotal: number;
   pixTotal: number;
-  multipleTotal: number;
 }
 
 interface SalePayment {
@@ -61,7 +60,6 @@ const CashRegister = () => {
     creditTotal: 0,
     debitTotal: 0,
     pixTotal: 0,
-    multipleTotal: 0,
   });
   const [sales, setSales] = useState<Sale[]>([]);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
@@ -88,20 +86,24 @@ const CashRegister = () => {
     }
 
     const salesList = salesData || [];
-    
-    // Buscar pagamentos para vendas com método múltiplo
-    const salesWithPayments = await Promise.all(
-      salesList.map(async (sale) => {
-        if (sale.payment_method === "multiple") {
-          const { data: payments } = await supabase
-            .from("sale_payments")
-            .select("payment_method, amount")
-            .eq("sale_id", sale.id);
-          return { ...sale, payments: payments || [] };
-        }
-        return { ...sale, payments: [] };
-      })
-    );
+    // Buscar todos os pagamentos das vendas do dia numa única query
+    const saleIds = salesList.map((s:any) => s.id);
+    let paymentsBySale = new Map<string, SalePayment[]>();
+    if (saleIds.length > 0) {
+      const { data: allPayments } = await supabase
+        .from('sale_payments')
+        .select('sale_id, payment_method, amount')
+        .in('sale_id', saleIds);
+      (allPayments || []).forEach((p:any) => {
+        const arr = paymentsBySale.get(p.sale_id) || [];
+        arr.push({ payment_method: p.payment_method, amount: p.amount });
+        paymentsBySale.set(p.sale_id, arr);
+      });
+    }
+    const salesWithPayments = salesList.map((sale:any) => ({
+      ...sale,
+      payments: paymentsBySale.get(sale.id) || []
+    }));
 
     setSales(salesWithPayments);
 
@@ -112,14 +114,12 @@ const CashRegister = () => {
       creditTotal: 0,
       debitTotal: 0,
       pixTotal: 0,
-      multipleTotal: 0,
     };
 
-    // Calcular totais considerando pagamentos múltiplos
-    salesWithPayments.forEach((sale) => {
+    // Calcular totais sempre considerando payments quando existirem
+    salesWithPayments.forEach((sale:any) => {
       summary.totalSales += Number(sale.final_amount);
-      
-      if (sale.payment_method === "multiple" && sale.payments && sale.payments.length > 0) {
+      if (sale.payments && sale.payments.length > 0) {
         sale.payments.forEach((p: SalePayment) => {
           switch (p.payment_method) {
             case "cash":
@@ -150,9 +150,6 @@ const CashRegister = () => {
           case "pix":
             summary.pixTotal += Number(sale.final_amount);
             break;
-          case "multiple":
-            summary.multipleTotal += Number(sale.final_amount);
-            break;
         }
       }
     });
@@ -172,8 +169,14 @@ const CashRegister = () => {
       credit: "Crédito",
       debit: "Débito",
       pix: "PIX",
-      multiple: "Múltiplo",
     };
+    // Também cobre casos antigos em PT-BR
+    if (labels[method]) return labels[method];
+    const low = (method || '').toLowerCase();
+    if (low.includes('dinheiro')) return 'Dinheiro';
+    if (low.includes('crédit') || low.includes('credit')) return 'Crédito';
+    if (low.includes('déb') || low.includes('debit')) return 'Débito';
+    if (low.includes('pix')) return 'PIX';
     return labels[method] || method;
   };
 
@@ -291,18 +294,7 @@ const CashRegister = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Múltiplo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-orange-600">
-                R$ {summary.multipleTotal.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Card de Múltiplo removido: valores de múltiplos agora somam nas categorias correspondentes */}
         </div>
 
         {/* Tabela de vendas do dia */}
