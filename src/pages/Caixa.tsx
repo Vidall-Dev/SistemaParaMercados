@@ -205,6 +205,10 @@ const CashRegister = () => {
               />
             </div>
 
+            <Button onClick={() => window.location.assign(`/fluxo?date=${selectedDate}`)} variant="outline">
+              Abrir Fluxo de Caixa
+            </Button>
+
             {isToday && !isClosed && (
               <Button onClick={() => setShowCloseDialog(true)} variant="default">
                 <Check className="h-4 w-4 mr-2" />

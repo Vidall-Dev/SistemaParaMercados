@@ -69,6 +69,7 @@ const Layout = ({ children }: LayoutProps) => {
     { icon: FolderOpen, label: "Categorias", path: "/categorias" },
     { icon: ShoppingCart, label: "PDV - Vendas", path: "/pdv" },
     { icon: Wallet, label: "Caixa", path: "/caixa" },
+    { icon: Wallet, label: "Fluxo de Caixa", path: "/fluxo" },
     { icon: TrendingUp, label: "Estoque", path: "/estoque" },
     { icon: Receipt, label: "Contas a Pagar", path: "/contas" },
     { icon: BarChart3, label: "Relatórios", path: "/relatorios" },
@@ -99,13 +100,13 @@ const Layout = ({ children }: LayoutProps) => {
           isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
           <div className="p-6 border-b border-sidebar-border">
             <h1 className="text-xl font-bold text-sidebar-foreground truncate" title={storeName}>
               {storeName}
             </h1>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;

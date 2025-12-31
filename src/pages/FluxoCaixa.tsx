@@ -25,7 +25,13 @@ const labelFor = (m: string) => {
 
 const FluxoCaixa = () => {
   const { storeId } = useStore();
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const initialDate = (()=>{
+    const u = new URL(window.location.href);
+    const d = u.searchParams.get('date');
+    if (d) return d;
+    return format(new Date(), "yyyy-MM-dd");
+  })();
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [sales, setSales] = useState<Sale[]>([]);
   const [paymentsBySale, setPaymentsBySale] = useState<Map<string, SalePayment[]>>(new Map());
   const [bills, setBills] = useState<Bill[]>([]);
