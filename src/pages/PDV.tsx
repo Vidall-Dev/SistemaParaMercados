@@ -539,7 +539,10 @@ const PDV = () => {
           <Button onClick={handlePrintReceipt} className="w-full sm:w-auto">
             Imprimir notinha
           </Button>
-        
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+         
       
     
     <PendingSalesDialog
