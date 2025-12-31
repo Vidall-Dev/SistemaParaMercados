@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
 import QuantityButton from '@/components/cart/QuantityButton';
+import { useBarcodeInput } from '@/hooks/useBarcodeInput';
+import { toast } from 'sonner';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -23,6 +25,23 @@ const PDV = () => {
   const [loading, setLoading] = useState(false);
   const cartRef = useRef<HTMLDivElement>(null);
   useAutoScroll(cartRef, [items]);
+
+  // leitor de código de barras
+  useBarcodeInput(async (code) => {
+    // procura produto por código de barras exact match
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('barcode', code)
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      toast.error(`Produto não encontrado para código ${code}`);
+      return;
+    }
+    addItemToCart(data);
+  });
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { storeId, store } = useStore();
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -270,11 +289,9 @@ const PDV = () => {
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
-    printWindow.close();
+    
   }
 
-    const printWindow = window.open('', '', 'width=400,height=600');
-    if (!printWindow) return;
 
     const receiptHtml = `
       <html>
@@ -335,7 +352,7 @@ const PDV = () => {
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
-    printWindow.close();
+    
   };
 
   return (
