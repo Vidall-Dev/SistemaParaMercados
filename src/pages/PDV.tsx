@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
 import QuantityButton from '@/components/cart/QuantityButton';
 import { PendingSalesDialog } from '@/components/cart/PendingSalesDialog';
+import { PaymentModal, Payment } from '@/components/payment/PaymentModal';
 import { useBarcodeInput } from '@/hooks/useBarcodeInput';
 import { toast } from 'sonner';
 import { usePendingSales } from '@/hooks/usePendingSales';
@@ -25,6 +26,9 @@ const PDV = () => {
   const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const remaining = parseFloat((total - payments.reduce((s,p)=>s+p.amount,0)).toFixed(2));
   const cartRef = useRef<HTMLDivElement>(null);
   // pending sales
   const { pendingSales, suspendSale, resumeSale } = usePendingSales();
