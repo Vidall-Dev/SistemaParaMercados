@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Search, Trash2 } from 'lucide-react';
+import QuantityButton from '@/components/cart/QuantityButton';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/hooks/useStore';
@@ -19,6 +21,8 @@ const PDV = () => {
   const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
   const [amountPaid, setAmountPaid] = useState(0);
   const [loading, setLoading] = useState(false);
+  const cartRef = useRef<HTMLDivElement>(null);
+  useAutoScroll(cartRef, [items]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { storeId, store } = useStore();
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -93,6 +97,18 @@ const PDV = () => {
     });
     setSearchQuery('');
     setSearchResults([]);
+  };
+
+  const incrementItem = (productId: string) => {
+    setItems(prev => prev.map(it => it.id === productId ? { ...it, quantity: it.quantity + 1 } : it));
+  };
+
+  const decrementItem = (productId: string) => {
+    setItems(prev => prev.flatMap(it => {
+      if (it.id !== productId) return it;
+      if (it.quantity === 1) return []; // remove
+      return { ...it, quantity: it.quantity - 1 };
+    }));
   };
 
   const removeItemFromCart = (productId: string) => {
@@ -255,9 +271,7 @@ const PDV = () => {
     printWindow.focus();
     printWindow.print();
     printWindow.close();
-  };
-    if (!receiptData) return;
-    if (typeof window === 'undefined') return;
+  }
 
     const printWindow = window.open('', '', 'width=400,height=600');
     if (!printWindow) return;
@@ -391,6 +405,9 @@ const PDV = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <QuantityButton type="minus" onClick={() => decrementItem(item.id)} disabled={item.quantity===1} />
+                    <span className="w-6 text-center select-none">{item.quantity}</span>
+                    <QuantityButton type="plus" onClick={() => incrementItem(item.id)} />
                     <p className="font-semibold">R$ {(item.quantity * item.price).toFixed(2)}</p>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => removeItemFromCart(item.id)}>
                       <Trash2 className="h-4 w-4" />
@@ -495,7 +512,12 @@ const PDV = () => {
                 <div key={item.id} className="flex justify-between text-sm">
                   <div>
                     <p className="font-medium">{item.name}</p>
-                    <p className="text-muted-foreground">{item.quantity} x R$ {item.price.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <QuantityButton type="minus" onClick={() => decrementItem(item.id)} disabled={item.quantity===1} />
+                    <span className="w-6 text-center select-none">{item.quantity}</span>
+                    <QuantityButton type="plus" onClick={() => incrementItem(item.id)} />
                   </div>
                   <p className="font-semibold">R$ {(item.quantity * item.price).toFixed(2)}</p>
                 </div>
