@@ -4,18 +4,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { StoreProvider } from "@/hooks/useStore";
-import Dashboard from "./pages/Dashboard";
-import Auth from "./pages/Auth";
-import Products from "./pages/Products";
-import Categories from "./pages/Categories";
+import Painel from "./pages/Painel";
+import Autenticacao from "./pages/Autenticacao";
+import Produtos from "./pages/Produtos";
+import Categorias from "./pages/Categorias";
 import PDV from "./pages/PDV";
-import Reports from "./pages/Reports";
-import StockMovements from "./pages/StockMovements";
-import FinancialReports from "./pages/FinancialReports";
-import Bills from "./pages/Bills";
-import CashRegister from "./pages/CashRegister";
-import StoreSetup from "./pages/StoreSetup";
-import NotFound from "./pages/NotFound";
+import Relatorios from "./pages/Relatorios";
+import MovimentacoesEstoque from "./pages/MovimentacoesEstoque";
+import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
+import Contas from "./pages/Contas";
+import Caixa from "./pages/Caixa";
+import ConfiguracaoLoja from "./pages/ConfiguracaoLoja";
+import NaoEncontrado from "./pages/NaoEncontrado";
 
 const queryClient = new QueryClient();
 
@@ -29,19 +29,19 @@ const App = () => (
           <div className="flex flex-col min-h-screen bg-background">
             <main className="flex-grow">
               <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/configurar-loja" element={<StoreSetup />} />
-                <Route path="/produtos" element={<Products />} />
-                <Route path="/categorias" element={<Categories />} />
+                <Route path="/" element={<Painel />} />
+                <Route path="/auth" element={<Autenticacao />} />
+                <Route path="/configurar-loja" element={<ConfiguracaoLoja />} />
+                <Route path="/produtos" element={<Produtos />} />
+                <Route path="/categorias" element={<Categorias />} />
                 <Route path="/pdv" element={<PDV />} />
-                <Route path="/relatorios" element={<Reports />} />
-                <Route path="/estoque" element={<StockMovements />} />
-                <Route path="/financeiro" element={<FinancialReports />} />
-                <Route path="/contas" element={<Bills />} />
-                <Route path="/caixa" element={<CashRegister />} />
+                <Route path="/relatorios" element={<Relatorios />} />
+                <Route path="/estoque" element={<MovimentacoesEstoque />} />
+                <Route path="/financeiro" element={<RelatoriosFinanceiros />} />
+                <Route path="/contas" element={<Contas />} />
+                <Route path="/caixa" element={<Caixa />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<NaoEncontrado />} />
               </Routes>
             </main>
             <footer className="text-center p-4 text-sm text-muted-foreground">
