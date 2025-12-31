@@ -191,6 +191,72 @@ const PDV = () => {
 
   const handlePrintReceipt = () => {
     if (!receiptData) return;
+    if (typeof window === "undefined") return;
+
+    // ----- Utilidades de formatação -----
+    const WIDTH = 32; // 32 caracteres (~58 mm)
+    const padCenter = (text: string) => {
+      if (text.length >= WIDTH) return text.slice(0, WIDTH);
+      const left = Math.floor((WIDTH - text.length) / 2);
+      const right = WIDTH - text.length - left;
+      return " ".repeat(left) + text + " ".repeat(right);
+    };
+    const padRight = (text: string, size: number) => (
+      text.length >= size ? text.slice(0, size) : text + " ".repeat(size - text.length)
+    );
+    const padLeft = (text: string, size: number) => (
+      text.length >= size ? text.slice(0, size) : " ".repeat(size - text.length) + text
+    );
+
+    // ----- Montagem do texto -----
+    const lines: string[] = [];
+
+    // Cabeçalho
+    lines.push(padCenter(store?.name ?? "MEU MERCADO"));
+    if (store?.address) lines.push(padCenter(store.address));
+    lines.push("-".repeat(WIDTH));
+    lines.push(`VENDA: ${receiptData.saleNumber ?? receiptData.saleId.substring(0, 6)}`);
+    lines.push(`DATA : ${receiptData.createdAt}`);
+    lines.push("-".repeat(WIDTH));
+
+    // Tabela de produtos
+    lines.push(padRight("ITEM", 20) + padLeft("QTD", 4) + padLeft("VL", 8));
+    lines.push("-".repeat(WIDTH));
+    receiptData.items.forEach((item) => {
+      const totalItem = (item.quantity * item.price).toFixed(2);
+      const name = padRight(item.name, 20);
+      const qty = padLeft(item.quantity.toString(), 4);
+      const vl = padLeft(totalItem, 8);
+      lines.push(name + qty + vl);
+    });
+    lines.push("-".repeat(WIDTH));
+
+    // Totais
+    const totalStr = padLeft("R$ " + receiptData.total.toFixed(2), WIDTH);
+    lines.push(totalStr);
+    const recebidoStr = padLeft("Recebido: R$ " + receiptData.amountPaid.toFixed(2), WIDTH);
+    lines.push(recebidoStr);
+    const trocoStr = padLeft("Troco: R$ " + receiptData.change.toFixed(2), WIDTH);
+    lines.push(trocoStr);
+    lines.push("-".repeat(WIDTH));
+    lines.push(padCenter("OBRIGADO E VOLTE SEMPRE!"));
+
+    const receiptText = lines.join("\n");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Recibo</title><style>
+      @media print { body { margin: 0; } }
+      body { font-family: 'Courier New', monospace; white-space: pre; font-size: 12px; }
+    </style></head><body>${receiptText}</body></html>`;
+
+    const printWindow = window.open("", "", "width=300,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+    if (!receiptData) return;
     if (typeof window === 'undefined') return;
 
     const printWindow = window.open('', '', 'width=400,height=600');
