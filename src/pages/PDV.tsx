@@ -136,14 +136,24 @@ const PDV = () => {
   }, [items]);
 
   const addItemToCart = (product: any) => {
+    const stock = product.stock_quantity ?? product.stock ?? 0;
     setItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       if (existingItem) {
+        const nextQty = existingItem.quantity + 1;
+        if (typeof existingItem.stock === 'number' && nextQty > existingItem.stock) {
+          toast.error('Estoque insuficiente para este produto');
+          return prevItems;
+        }
         return prevItems.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: nextQty } : item
         );
       } else {
-        return [...prevItems, { ...product, quantity: 1 }];
+        if (stock <= 0) {
+          toast.error('Produto sem estoque');
+          return prevItems;
+        }
+        return [...prevItems, { ...product, quantity: 1, stock }];
       }
     });
     setSearchQuery('');
@@ -151,7 +161,15 @@ const PDV = () => {
   };
 
   const incrementItem = (productId: string) => {
-    setItems(prev => prev.map(it => it.id === productId ? { ...it, quantity: it.quantity + 1 } : it));
+    setItems(prev => prev.map(it => {
+      if (it.id !== productId) return it;
+      const limit = typeof it.stock === 'number' ? it.stock : Infinity;
+      if (it.quantity + 1 > limit) {
+        toast.error('Estoque insuficiente');
+        return it;
+      }
+      return { ...it, quantity: it.quantity + 1 };
+    }));
   };
 
   const decrementItem = (productId: string) => {
@@ -189,6 +207,27 @@ const PDV = () => {
       toast.error('Ainda há valor restante para quitar.');
       setLoading(false);
       return;
+    }
+
+    // 0. Revalidar estoque no servidor
+    const ids = items.map((it:any) => it.id ?? it.product_id);
+    const { data: stockData, error: stockError } = await supabase
+      .from('products')
+      .select('id,name,stock_quantity')
+      .in('id', ids);
+    if (stockError) {
+      console.error('Erro ao validar estoque:', stockError);
+      setLoading(false);
+      return;
+    }
+    const stockMap = new Map(stockData?.map((p:any)=>[p.id,p])||[]);
+    for (const it of items as any[]) {
+      const p = stockMap.get(it.id ?? it.product_id);
+      if (!p || p.stock_quantity < it.quantity) {
+        toast.error(`Estoque insuficiente para ${it.name || 'produto'}`);
+        setLoading(false);
+        return;
+      }
     }
 
     // 1. Inserir na tabela 'sales'
@@ -381,10 +420,14 @@ const PDV = () => {
                         variant="outline"
                         className="w-full justify-between h-auto"
                         onClick={() => addItemToCart(product)}
+                        disabled={(product as any).stock_quantity !== undefined && (product as any).stock_quantity <= 0}
                       >
                         <div className="text-left">
                           <p className="font-semibold">{product.name}</p>
                           <p className="text-sm text-muted-foreground">R$ {product.price.toFixed(2)}</p>
+                          <p className="text-xs {((product as any).stock_quantity ?? 0) <= 0 ? 'text-red-600' : 'text-muted-foreground'}">
+                            {((product as any).stock_quantity ?? 0) <= 0 ? 'Sem estoque' : `Estoque: ${(product as any).stock_quantity}`}
+                          </p>
                         </div>
                         <span>Adicionar</span>
                       </Button>
@@ -419,7 +462,7 @@ const PDV = () => {
                   <div className="flex items-center gap-2">
                     <QuantityButton type="minus" onClick={() => decrementItem(item.id)} disabled={item.quantity===1} />
                     <span className="w-6 text-center select-none">{item.quantity}</span>
-                    <QuantityButton type="plus" onClick={() => incrementItem(item.id)} />
+                    <QuantityButton type="plus" onClick={() => incrementItem(item.id)} disabled={typeof (item as any).stock === 'number' && item.quantity >= (item as any).stock} />
                     <p className="font-semibold">R$ {(item.quantity * item.price).toFixed(2)}</p>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => removeItemFromCart(item.id)}>
                       <Trash2 className="h-4 w-4" />
