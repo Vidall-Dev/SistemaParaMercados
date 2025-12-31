@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Check, AlertTriangle, Clock, AlertCircle } from "lucide-react";
 import { format, differenceInDays, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useStore } from "@/hooks/useStore";
 
 interface Bill {
   id: string;
@@ -86,15 +87,18 @@ const Bills = () => {
     setPendingAction(null);
   };
 
+  const { storeId } = useStore();
   useEffect(() => {
     loadBills();
-  }, []);
+  }, [storeId]);
 
   const loadBills = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("bills")
       .select("*")
       .order("due_date", { ascending: true });
+    if (storeId) query = query.eq("store_id", storeId);
+    const { data, error } = await query;
 
     if (error) {
       toast.error("Erro ao carregar contas");
@@ -113,8 +117,13 @@ const Bills = () => {
       return;
     }
 
+    if (!storeId) {
+      toast.error("Nenhuma loja selecionada");
+      return;
+    }
     const { error } = await supabase.from("bills").insert({
       user_id: user.id,
+      store_id: storeId,
       description: formData.description,
       amount: parseFloat(formData.amount),
       due_date: formData.due_date,
