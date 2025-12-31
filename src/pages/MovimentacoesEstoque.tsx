@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { Plus, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { useStore } from "@/hooks/useStore";
 
 interface StockMovement {
   id: string;
@@ -55,18 +56,22 @@ const StockMovements = () => {
     reason: "",
   });
 
+  const { storeId } = useStore();
+
   useEffect(() => {
     loadMovements();
     loadProducts();
     checkLowStock();
-  }, []);
+  }, [storeId]);
 
   const loadMovements = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("stock_movements")
       .select("*, products(name)")
       .order("created_at", { ascending: false })
       .limit(50);
+    if (storeId) query = query.eq("store_id", storeId);
+    const { data } = await query;
     setMovements(data || []);
   };
 
@@ -98,6 +103,10 @@ const StockMovements = () => {
       toast.error("Sessão expirada. Faça login novamente.");
       return;
     }
+    if (!storeId) {
+      toast.error("Nenhuma loja selecionada.");
+      return;
+    }
 
     const quantity = parseInt(formData.quantity);
     const { error: movementError } = await supabase
@@ -108,6 +117,7 @@ const StockMovements = () => {
         type: formData.type,
         reason: formData.reason,
         user_id: session.user.id,
+        store_id: storeId,
       }]);
 
     if (movementError) {
