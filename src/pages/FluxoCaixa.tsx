@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface Sale { id: string; created_at: string; final_amount: number; payment_method: string; change_given?: number; }
-interface SalePayment { sale_id: string; payment_method: string; amount: number; }
+interface SalePayment { sale_id: string; payment_method: string; amount: number; created_at?: string; }
 interface Bill { id: string; description: string; amount: number; paid_date: string | null; status: string; paid_method?: string | null; }
 interface CashMovement { id: string; type: 'withdrawal' | 'supply'; method: string; amount: number; created_at: string; notes: string | null; }
 
@@ -24,6 +24,16 @@ const labelFor = (m: string) => {
   return m;
 };
 const typeLabel = (t: string) => (t === 'withdrawal' ? 'Sangria' : t === 'supply' ? 'Suprimento' : t);
+const movementTypeLabel = (t: string) => {
+  switch (t) {
+    case 'sale_payment': return 'Venda';
+    case 'bill_paid': return 'Conta Paga';
+    case 'change': return 'Troco';
+    case 'withdrawal': return 'Sangria';
+    case 'supply': return 'Suprimento';
+    default: return t;
+  }
+};
 
 const FluxoCaixa = () => {
   const { storeId } = useStore();
@@ -60,12 +70,12 @@ const FluxoCaixa = () => {
       if (saleIds.length > 0) {
         const { data: pays } = await supabase
           .from("sale_payments")
-          .select("sale_id, payment_method, amount")
+          .select("sale_id, payment_method, amount, created_at")
           .in("sale_id", saleIds);
         const map = new Map<string, SalePayment[]>();
         (pays || []).forEach((p: any) => {
           const arr = map.get(p.sale_id) || [];
-          arr.push({ sale_id: p.sale_id, payment_method: p.payment_method, amount: Number(p.amount) });
+          arr.push({ sale_id: p.sale_id, payment_method: p.payment_method, amount: Number(p.amount), created_at: p.created_at });
           map.set(p.sale_id, arr);
         });
         setPaymentsBySale(map);
@@ -113,6 +123,66 @@ const FluxoCaixa = () => {
   }, [sales, paymentsBySale]);
 
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
+  type Combined = { id: string; ts: string; type: string; method: string; amount: number; note?: string };
+  const combinedMovements = useMemo(() => {
+    const items: Combined[] = [];
+    // 1) Pagamentos de venda (entradas)
+    paymentsBySale.forEach((arr, saleId) => {
+      arr.forEach((p) => {
+        items.push({
+          id: `sale-${saleId}-${p.payment_method}-${p.created_at || ''}`,
+          ts: p.created_at || (sales.find(s => s.id === saleId)?.created_at ?? selectedDate + 'T00:00:00'),
+          type: 'sale_payment',
+          method: p.payment_method,
+          amount: Number(p.amount || 0),
+          note: `Pagamento de venda ${saleId.substring(0, 8)}`,
+        });
+      });
+    });
+    // 2) Troco por venda (saída)
+    sales.forEach(s => {
+      const cg = Number(s.change_given || 0);
+      if (cg > 0) {
+        items.push({
+          id: `change-${s.id}`,
+          ts: s.created_at,
+          type: 'change',
+          method: 'cash',
+          amount: -cg,
+          note: `Troco da venda ${s.id.substring(0, 8)}`,
+        });
+      }
+    });
+    // 3) Contas pagas (saída)
+    bills.forEach(b => {
+      if (b.status === 'paid') {
+        const ts = b.paid_date ? `${b.paid_date}T12:00:00` : selectedDate + 'T12:00:00';
+        items.push({
+          id: `bill-${b.id}`,
+          ts,
+          type: 'bill_paid',
+          method: (b.paid_method || 'cash'),
+          amount: -Number(b.amount || 0),
+          note: b.description,
+        });
+      }
+    });
+    // 4) Sangria/Suprimento
+    cashMovements.forEach(cm => {
+      const sign = cm.type === 'withdrawal' ? -1 : 1;
+      items.push({
+        id: `cm-${cm.id}`,
+        ts: cm.created_at,
+        type: cm.type,
+        method: cm.method,
+        amount: sign * Number(cm.amount || 0),
+        note: cm.notes || undefined,
+      });
+    });
+    // Ordena por data desc
+    items.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+    return items;
+  }, [paymentsBySale, sales, bills, cashMovements, selectedDate]);
   const outflowBreakdown = useMemo(() => {
     const out = new Map<string, number>();
     // Contas pagas por método (se houver paid_method)
@@ -267,11 +337,11 @@ const FluxoCaixa = () => {
           </CardContent>
         </Card>
 
-        {/* Movimentações de Caixa (todas) */}
+        {/* Movimentações de Caixa (todas as entradas e saídas) */}
         <Card>
           <CardHeader><CardTitle>Movimentações de Caixa</CardTitle></CardHeader>
           <CardContent>
-            {cashMovements.length === 0 ? (
+            {combinedMovements.length === 0 ? (
               <div className="text-sm text-muted-foreground">Sem movimentações neste dia</div>
             ) : (
               <Table>
@@ -285,17 +355,15 @@ const FluxoCaixa = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cashMovements.map((cm) => {
-                    const sign = cm.type === 'withdrawal' ? -1 : 1;
-                    const val = sign * Number(cm.amount);
-                    const color = val < 0 ? 'text-red-600' : 'text-green-600';
+                  {combinedMovements.map((m) => {
+                    const color = m.amount < 0 ? 'text-red-600' : 'text-green-600';
                     return (
-                      <TableRow key={cm.id}>
-                        <TableCell>{format(new Date(cm.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
-                        <TableCell>{typeLabel(cm.type)}</TableCell>
-                        <TableCell>{labelFor(cm.method)}</TableCell>
-                        <TableCell className={`text-right font-medium ${color}`}>R$ {Math.abs(val).toFixed(2)} {val<0?'-':''}</TableCell>
-                        <TableCell className="max-w-[320px] truncate" title={cm.notes || ''}>{cm.notes || '-'}</TableCell>
+                      <TableRow key={m.id}>
+                        <TableCell>{format(new Date(m.ts), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        <TableCell>{movementTypeLabel(m.type)}</TableCell>
+                        <TableCell>{labelFor(m.method)}</TableCell>
+                        <TableCell className={`text-right font-medium ${color}`}>R$ {Math.abs(m.amount).toFixed(2)} {m.amount<0?'-':''}</TableCell>
+                        <TableCell className="max-w-[320px] truncate" title={m.note || ''}>{m.note || '-'}</TableCell>
                       </TableRow>
                     );
                   })}
