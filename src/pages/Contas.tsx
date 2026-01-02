@@ -42,6 +42,8 @@ import { toast } from "sonner";
 import { Plus, Trash2, Check, AlertTriangle, Clock, AlertCircle } from "lucide-react";
 import { format, differenceInDays, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStore } from "@/hooks/useStore";
 
 interface Bill {
@@ -71,6 +73,9 @@ const Bills = () => {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmTitle, setConfirmTitle] = useState("");
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState<'cash'|'credit'|'debit'|'pix'>('cash');
+  const [payTargetId, setPayTargetId] = useState<string | null>(null);
 
   const confirmAction = (action: () => void, title: string, message: string) => {
     setPendingAction(() => action);
@@ -143,11 +148,16 @@ const Bills = () => {
   };
 
   const handleMarkAsPaid = async (id: string) => {
-    // TODO: abrir dialog para escolher método (cash/credit/debit/pix) e salvar em paid_method
+    setPayTargetId(id);
+    setPayDialogOpen(true);
+  };
+
+  const confirmPay = async () => {
+    if (!payTargetId) return;
     const { error } = await supabase
       .from("bills")
-      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0] /*, paid_method: 'cash'*/ })
-      .eq("id", id);
+      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], paid_method: payMethod })
+      .eq("id", payTargetId);
 
     if (error) {
       toast.error("Erro ao marcar como pago");
@@ -155,6 +165,9 @@ const Bills = () => {
     }
 
     toast.success("Conta marcada como paga!");
+    setPayDialogOpen(false);
+    setPayTargetId(null);
+    setPayMethod('cash');
     loadBills();
   };
 
@@ -489,6 +502,34 @@ const Bills = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+      {/* Dialog método pagamento conta */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Selecionar método de pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Método</Label>
+              <Select value={payMethod} onValueChange={(v)=> setPayMethod(v as any)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o método" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Dinheiro</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="debit">Débito</SelectItem>
+                  <SelectItem value="credit">Crédito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={confirmPay}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </Layout>
   );

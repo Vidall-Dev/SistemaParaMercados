@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useStore } from "@/hooks/useStore";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +24,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Wallet, DollarSign, CreditCard, Smartphone, Calendar, Check } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface DailySummary {
   totalSales: number;
@@ -64,6 +67,15 @@ const CashRegister = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
+  const { storeId } = useStore();
+  const [sangriaOpen, setSangriaOpen] = useState(false);
+  const [sangriaAmount, setSangriaAmount] = useState(0);
+  const [sangriaNotes, setSangriaNotes] = useState("");
+  const [sangriaMethod, setSangriaMethod] = useState<'cash'|'credit'|'debit'|'pix'>('cash');
+  const [suprimentoOpen, setSuprimentoOpen] = useState(false);
+  const [suprimentoAmount, setSuprimentoAmount] = useState(0);
+  const [suprimentoNotes, setSuprimentoNotes] = useState("");
+  const [suprimentoMethod, setSuprimentoMethod] = useState<'cash'|'credit'|'debit'|'pix'>('cash');
 
   useEffect(() => {
     loadDailySummary();
@@ -182,6 +194,61 @@ const CashRegister = () => {
 
   const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
 
+  const toCode = (m: string) => {
+    const t = m.toLowerCase();
+    if (t.startsWith('dinheiro') || t === 'cash') return 'cash';
+    if (t.startsWith('crédito') || t === 'credito' || t === 'credit') return 'credit';
+    if (t.startsWith('débito') || t === 'debito' || t === 'debit') return 'debit';
+    if (t === 'pix') return 'pix';
+    return 'cash';
+  };
+
+  const handleCreateSangria = async () => {
+    if (!storeId) { toast.error('Nenhuma loja selecionada'); return; }
+    if (sangriaAmount <= 0) { toast.error('Informe um valor válido'); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error('Usuário não autenticado'); return; }
+    const { error } = await supabase
+      .from('cash_movements')
+      .insert({
+        store_id: storeId,
+        user_id: user.id,
+        type: 'withdrawal',
+        method: sangriaMethod,
+        amount: sangriaAmount,
+        notes: sangriaNotes || null,
+      });
+    if (error) { toast.error('Erro ao registrar sangria'); return; }
+    toast.success('Sangria registrada');
+    setSangriaOpen(false);
+    setSangriaAmount(0);
+    setSangriaNotes("");
+    setSangriaMethod('cash');
+  };
+
+  const handleCreateSuprimento = async () => {
+    if (!storeId) { toast.error('Nenhuma loja selecionada'); return; }
+    if (suprimentoAmount <= 0) { toast.error('Informe um valor válido'); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error('Usuário não autenticado'); return; }
+    const { error } = await supabase
+      .from('cash_movements')
+      .insert({
+        store_id: storeId,
+        user_id: user.id,
+        type: 'supply',
+        method: suprimentoMethod,
+        amount: suprimentoAmount,
+        notes: suprimentoNotes || null,
+      });
+    if (error) { toast.error('Erro ao registrar suprimento'); return; }
+    toast.success('Suprimento registrado');
+    setSuprimentoOpen(false);
+    setSuprimentoAmount(0);
+    setSuprimentoNotes("");
+    setSuprimentoMethod('cash');
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -204,6 +271,14 @@ const CashRegister = () => {
                 className="w-auto"
               />
             </div>
+
+            <Button onClick={() => setSangriaOpen(true)} variant="destructive">
+              Registrar Sangria
+            </Button>
+
+            <Button onClick={() => setSuprimentoOpen(true)} variant="secondary">
+              Registrar Suprimento
+            </Button>
 
             <Button onClick={() => window.location.assign(`/fluxo?date=${selectedDate}`)} variant="outline">
               Abrir Fluxo de Caixa
@@ -378,6 +453,78 @@ const CashRegister = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Dialog de Sangria */}
+        <Dialog open={sangriaOpen} onOpenChange={setSangriaOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar Sangria</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Método</Label>
+                <Select value={sangriaMethod} onValueChange={(v)=> setSangriaMethod(v as any)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o método" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="debit">Débito</SelectItem>
+                    <SelectItem value="credit">Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="sangriaAmount">Valor</Label>
+                <Input id="sangriaAmount" type="number" min="0" step="0.01"
+                  value={sangriaAmount || ''}
+                  onChange={(e)=> setSangriaAmount(parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <Label htmlFor="sangriaNotes">Observação (opcional)</Label>
+                <Input id="sangriaNotes" value={sangriaNotes} onChange={(e)=> setSangriaNotes(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateSangria} variant="destructive">Registrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Suprimento */}
+        <Dialog open={suprimentoOpen} onOpenChange={setSuprimentoOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Registrar Suprimento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Método</Label>
+                <Select value={suprimentoMethod} onValueChange={(v)=> setSuprimentoMethod(v as any)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o método" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="debit">Débito</SelectItem>
+                    <SelectItem value="credit">Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="suprimentoAmount">Valor</Label>
+                <Input id="suprimentoAmount" type="number" min="0" step="0.01"
+                  value={suprimentoAmount || ''}
+                  onChange={(e)=> setSuprimentoAmount(parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <Label htmlFor="suprimentoNotes">Observação (opcional)</Label>
+                <Input id="suprimentoNotes" value={suprimentoNotes} onChange={(e)=> setSuprimentoNotes(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateSuprimento} variant="secondary">Registrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
