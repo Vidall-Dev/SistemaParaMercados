@@ -23,6 +23,7 @@ const labelFor = (m: string) => {
   if (t.includes("multiple")) return "Múltiplos";
   return m;
 };
+const typeLabel = (t: string) => (t === 'withdrawal' ? 'Sangria' : t === 'supply' ? 'Suprimento' : t);
 
 const FluxoCaixa = () => {
   const { storeId } = useStore();
@@ -141,6 +142,7 @@ const FluxoCaixa = () => {
   }, [bills]);
 
   const balance = totalInflow - totalOutflow;
+  const totalChangeGiven = useMemo(() => sales.reduce((s, x) => s + Number(x.change_given || 0), 0), [sales]);
 
   return (
     <Layout>
@@ -151,13 +153,51 @@ const FluxoCaixa = () => {
         </div>
 
         {/* Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader><CardTitle>Entradas</CardTitle></CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">R$ {totalInflow.toFixed(2)}</div>
             </CardContent>
           </Card>
+
+        {/* Movimentações de Caixa (todas) */}
+        <Card>
+          <CardHeader><CardTitle>Movimentações de Caixa</CardTitle></CardHeader>
+          <CardContent>
+            {cashMovements.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Sem movimentações neste dia</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Observação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cashMovements.map((cm) => {
+                    const sign = cm.type === 'withdrawal' ? -1 : 1;
+                    const val = sign * Number(cm.amount);
+                    const color = val < 0 ? 'text-red-600' : 'text-green-600';
+                    return (
+                      <TableRow key={cm.id}>
+                        <TableCell>{format(new Date(cm.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        <TableCell>{typeLabel(cm.type)}</TableCell>
+                        <TableCell>{labelFor(cm.method)}</TableCell>
+                        <TableCell className={`text-right font-medium ${color}`}>R$ {Math.abs(val).toFixed(2)} {val<0?'-':''}</TableCell>
+                        <TableCell className="max-w-[320px] truncate" title={cm.notes || ''}>{cm.notes || '-'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
           <Card>
             <CardHeader><CardTitle>Saídas</CardTitle></CardHeader>
             <CardContent>
@@ -168,6 +208,12 @@ const FluxoCaixa = () => {
             <CardHeader><CardTitle>Saldo do Dia</CardTitle></CardHeader>
             <CardContent>
               <div className="text-2xl font-bold {balance>=0 ? 'text-primary' : 'text-red-600'}">R$ {balance.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Troco total do dia</CardTitle></CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">R$ {totalChangeGiven.toFixed(2)}</div>
             </CardContent>
           </Card>
         </div>
