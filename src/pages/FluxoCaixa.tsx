@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-interface Sale { id: string; created_at: string; final_amount: number; payment_method: string; change_given?: number; }
+interface Sale { id: string; sale_number?: number; created_at: string; final_amount: number; payment_method: string; change_given?: number; }
 interface SalePayment { sale_id: string; payment_method: string; amount: number; created_at?: string; }
 interface Bill { id: string; description: string; amount: number; paid_date: string | null; paid_at?: string | null; status: string; paid_method?: string | null; }
 interface CashMovement { id: string; type: 'withdrawal' | 'supply'; method: string; amount: number; created_at: string; notes: string | null; }
@@ -57,13 +57,13 @@ const FluxoCaixa = () => {
       // 1) Vendas do dia
       const { data: salesData } = await supabase
         .from("sales")
-        .select("id, created_at, final_amount, payment_method, change_given, store_id")
+        .select("id, sale_number, created_at, final_amount, payment_method, change_given, store_id")
         .eq("store_id", storeId)
         .gte("created_at", start)
         .lte("created_at", end)
         .order("created_at", { ascending: false });
       const list = (salesData || []) as any[];
-      setSales(list.map(s => ({ id: s.id, created_at: s.created_at, final_amount: s.final_amount, payment_method: s.payment_method, change_given: Number(s.change_given||0) })));
+      setSales(list.map(s => ({ id: s.id, sale_number: s.sale_number, created_at: s.created_at, final_amount: s.final_amount, payment_method: s.payment_method, change_given: Number(s.change_given||0) })));
 
       // 2) Pagamentos das vendas
       const saleIds = list.map(s => s.id);
@@ -129,13 +129,15 @@ const FluxoCaixa = () => {
     // 1) Pagamentos de venda (entradas)
     paymentsBySale.forEach((arr, saleId) => {
       arr.forEach((p) => {
+        const saleRef = sales.find(s => s.id === saleId);
+        const label = saleRef?.sale_number ? `Venda #${saleRef.sale_number}` : `Venda ${saleId.substring(0, 8)}`;
         items.push({
           id: `sale-${saleId}-${p.payment_method}-${p.created_at || ''}`,
           ts: p.created_at || (sales.find(s => s.id === saleId)?.created_at ?? selectedDate + 'T00:00:00'),
           type: 'sale_payment',
           method: p.payment_method,
           amount: Number(p.amount || 0),
-          note: `Pagamento de venda ${saleId.substring(0, 8)}`,
+          note: `Pagamento de ${label}`,
         });
       });
     });
@@ -143,13 +145,14 @@ const FluxoCaixa = () => {
     sales.forEach(s => {
       const pays = paymentsBySale.get(s.id);
       if (!pays || pays.length === 0) {
+        const label = s.sale_number ? `Venda #${s.sale_number}` : `Venda ${s.id.substring(0, 8)}`;
         items.push({
           id: `sale-single-${s.id}`,
           ts: s.created_at,
           type: 'sale_payment',
           method: s.payment_method,
           amount: Number(s.final_amount || 0),
-          note: `Venda ${s.id.substring(0, 8)}`,
+          note: label,
         });
       }
     });
@@ -157,13 +160,14 @@ const FluxoCaixa = () => {
     sales.forEach(s => {
       const cg = Number(s.change_given || 0);
       if (cg > 0) {
+        const label = s.sale_number ? `Venda #${s.sale_number}` : `Venda ${s.id.substring(0, 8)}`;
         items.push({
           id: `change-${s.id}`,
           ts: s.created_at,
           type: 'change',
           method: 'cash',
           amount: -cg,
-          note: `Troco da venda ${s.id.substring(0, 8)}`,
+          note: `Troco de ${label}`,
         });
       }
     });
