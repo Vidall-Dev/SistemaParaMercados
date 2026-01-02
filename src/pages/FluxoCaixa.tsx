@@ -161,43 +161,7 @@ const FluxoCaixa = () => {
             </CardContent>
           </Card>
 
-        {/* Movimentações de Caixa (todas) */}
-        <Card>
-          <CardHeader><CardTitle>Movimentações de Caixa</CardTitle></CardHeader>
-          <CardContent>
-            {cashMovements.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Sem movimentações neste dia</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data/Hora</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Método</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Observação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cashMovements.map((cm) => {
-                    const sign = cm.type === 'withdrawal' ? -1 : 1;
-                    const val = sign * Number(cm.amount);
-                    const color = val < 0 ? 'text-red-600' : 'text-green-600';
-                    return (
-                      <TableRow key={cm.id}>
-                        <TableCell>{format(new Date(cm.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
-                        <TableCell>{typeLabel(cm.type)}</TableCell>
-                        <TableCell>{labelFor(cm.method)}</TableCell>
-                        <TableCell className={`text-right font-medium ${color}`}>R$ {Math.abs(val).toFixed(2)} {val<0?'-':''}</TableCell>
-                        <TableCell className="max-w-[320px] truncate" title={cm.notes || ''}>{cm.notes || '-'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {/* Movimentações de Caixa movida para baixo */}
           <Card>
             <CardHeader><CardTitle>Saídas</CardTitle></CardHeader>
             <CardContent>
@@ -297,6 +261,44 @@ const FluxoCaixa = () => {
                       <TableCell className="text-right">R$ {Number(v).toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Movimentações de Caixa (todas) */}
+        <Card>
+          <CardHeader><CardTitle>Movimentações de Caixa</CardTitle></CardHeader>
+          <CardContent>
+            {cashMovements.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Sem movimentações neste dia</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Observação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cashMovements.map((cm) => {
+                    const sign = cm.type === 'withdrawal' ? -1 : 1;
+                    const val = sign * Number(cm.amount);
+                    const color = val < 0 ? 'text-red-600' : 'text-green-600';
+                    return (
+                      <TableRow key={cm.id}>
+                        <TableCell>{format(new Date(cm.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        <TableCell>{typeLabel(cm.type)}</TableCell>
+                        <TableCell>{labelFor(cm.method)}</TableCell>
+                        <TableCell className={`text-right font-medium ${color}`}>R$ {Math.abs(val).toFixed(2)} {val<0?'-':''}</TableCell>
+                        <TableCell className="max-w-[320px] truncate" title={cm.notes || ''}>{cm.notes || '-'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
