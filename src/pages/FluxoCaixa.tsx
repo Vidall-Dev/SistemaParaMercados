@@ -11,7 +11,7 @@ import { ptBR } from "date-fns/locale";
 
 interface Sale { id: string; created_at: string; final_amount: number; payment_method: string; change_given?: number; }
 interface SalePayment { sale_id: string; payment_method: string; amount: number; created_at?: string; }
-interface Bill { id: string; description: string; amount: number; paid_date: string | null; status: string; paid_method?: string | null; }
+interface Bill { id: string; description: string; amount: number; paid_date: string | null; paid_at?: string | null; status: string; paid_method?: string | null; }
 interface CashMovement { id: string; type: 'withdrawal' | 'supply'; method: string; amount: number; created_at: string; notes: string | null; }
 
 const labelFor = (m: string) => {
@@ -86,7 +86,7 @@ const FluxoCaixa = () => {
       // 3) Contas pagas do dia
       const { data: billsData } = await supabase
         .from("bills")
-        .select("id, description, amount, paid_date, status, paid_method, store_id")
+        .select("id, description, amount, paid_date, paid_at, status, paid_method, store_id")
         .eq("store_id", storeId)
         .eq("status", "paid")
         .gte("paid_date", selectedDate)
@@ -139,6 +139,20 @@ const FluxoCaixa = () => {
         });
       });
     });
+    // 1b) Vendas SEM registros em sale_payments (entrada única)
+    sales.forEach(s => {
+      const pays = paymentsBySale.get(s.id);
+      if (!pays || pays.length === 0) {
+        items.push({
+          id: `sale-single-${s.id}`,
+          ts: s.created_at,
+          type: 'sale_payment',
+          method: s.payment_method,
+          amount: Number(s.final_amount || 0),
+          note: `Venda ${s.id.substring(0, 8)}`,
+        });
+      }
+    });
     // 2) Troco por venda (saída)
     sales.forEach(s => {
       const cg = Number(s.change_given || 0);
@@ -156,7 +170,7 @@ const FluxoCaixa = () => {
     // 3) Contas pagas (saída)
     bills.forEach(b => {
       if (b.status === 'paid') {
-        const ts = b.paid_date ? `${b.paid_date}T12:00:00` : selectedDate + 'T12:00:00';
+        const ts = b.paid_at || (b.paid_date ? `${b.paid_date}T12:00:00` : selectedDate + 'T12:00:00');
         items.push({
           id: `bill-${b.id}`,
           ts,

@@ -156,7 +156,7 @@ const Bills = () => {
     if (!payTargetId) return;
     const { error } = await supabase
       .from("bills")
-      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], paid_method: payMethod })
+      .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], paid_at: new Date().toISOString(), paid_method: payMethod })
       .eq("id", payTargetId);
 
     if (error) {
